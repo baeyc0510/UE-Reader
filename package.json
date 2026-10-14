@@ -1,0 +1,64 @@
+{
+  "name": "ue-reader",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.mjs --dev",
+    "build": "tsc --noEmit && vite build",
+    "postbuild": "node scripts/build-state.mjs --save",
+    "start": "node server/index.mjs",
+    "test": "node --test tests/core.test.mjs tests/chats-agents.test.mjs tests/code-index.test.mjs tests/folders.test.mjs tests/documents.test.mjs tests/extended.test.mjs",
+    "test:ui": "playwright test",
+    "desktop": "electron .",
+    "package:desktop": "npm run build && node scripts/package-desktop.mjs",
+    "test:desktop": "node tests/desktop.smoke.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "^0.468.0",
+    "pdfjs-dist": "5.4.624",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  },
+  "engines": {
+    "node": ">=20.18"
+  },
+  "main": "desktop/main.mjs",
+  "description": "Read source code and explore function explanations with Codex",
+  "author": "UE Reader",
+  "build": {
+    "appId": "local.ue-reader.desktop",
+    "productName": "UE Reader",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "server/**/*",
+      "dist/**/*",
+      "samples/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "dir",
+      "executableName": "UE Reader",
+      "signAndEditExecutable": false
+    },
+    "npmRebuild": false
+  }
+}

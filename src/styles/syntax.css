@@ -1,0 +1,26 @@
+/* Higher contrast C++ token palette on both reading themes. */
+.code-line { color: #263542; }
+.code-line .hljs-keyword { color: #8235a1; font-weight: 600; }
+.code-line .hljs-type, .code-line .hljs-title.class_ { color: #006c70; }
+.code-line .hljs-title, .code-line .hljs-title.function_, .code-line .hljs-built_in { color: #155ca0; }
+.code-line .hljs-string { color: #3d701c; }
+.code-line .hljs-comment { color: #5f7066; font-style: normal; }
+.code-line .hljs-number, .code-line .hljs-literal { color: #a04412; }
+.code-line .hljs-meta, .code-line .hljs-macro { color: #994364; }
+.code-line .hljs-meta .hljs-string { color: #3d701c; }
+[data-theme=dark] .code-line { color: #dce3ea; }
+[data-theme=dark] .code-line .hljs-keyword { color: #d9a6f0; }
+[data-theme=dark] .code-line .hljs-type, [data-theme=dark] .code-line .hljs-title.class_ { color: #79d5cb; }
+[data-theme=dark] .code-line .hljs-title, [data-theme=dark] .code-line .hljs-title.function_, [data-theme=dark] .code-line .hljs-built_in { color: #9bcaff; }
+[data-theme=dark] .code-line .hljs-string, [data-theme=dark] .code-line .hljs-meta .hljs-string { color: #b2d58d; }
+[data-theme=dark] .code-line .hljs-comment { color: #a3b4a8; }
+[data-theme=dark] .code-line .hljs-number, [data-theme=dark] .code-line .hljs-literal { color: #f5bf87; }
+[data-theme=dark] .code-line .hljs-meta, [data-theme=dark] .code-line .hljs-macro { color: #eca7ba; }
+
+/* Navigation target blink (go to definition/declaration, search results). Two names restart the animation on repeat jumps. */
+.code-line.flash-line::after{content:'';position:absolute;inset:0;pointer-events:none;background:#f0b44c;border-left:3px solid #d08a1e;opacity:0}
+.code-line.flash-0::after{animation:line-flash-a 1.5s ease-out}
+.code-line.flash-1::after{animation:line-flash-b 1.5s ease-out}
+@keyframes line-flash-a{0%,30%,60%{opacity:.45}15%,45%{opacity:.08}100%{opacity:0}}
+@keyframes line-flash-b{0%,30%,60%{opacity:.45}15%,45%{opacity:.08}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.code-line.flash-0::after,.code-line.flash-1::after{animation:line-flash-a 1.5s steps(1,end)}}

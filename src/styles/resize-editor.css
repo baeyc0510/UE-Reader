@@ -1,0 +1,16 @@
+.sidebar { position: relative; width: clamp(180px, var(--sidebar-width, 244px), min(600px, 45vw)); }
+.sidebar-resizer { position: absolute; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; z-index: 4; }
+.sidebar-resizer:hover, .sidebar-resizer.dragging, .sidebar-resizer:focus-visible { background: #a7633755; outline-offset: -2px; }
+.selecting-lines { user-select: none; cursor: row-resize; }
+.line-number { touch-action: none; align-self: stretch; cursor: row-resize; }
+.source-linked-highlight { background: var(--selected) !important; box-shadow: inset 3px 0 #7193be; border-radius: 5px; }
+.editable-explanation { min-width: 0; }
+.explanation-edit-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 8px; }
+.explanation-edit-actions button { color: var(--accent); font-size: .85rem; padding: 4px 6px; }
+.explanation-editor { padding: 10px 0; }
+.explanation-editor label { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: .85rem; color: var(--muted); }
+.explanation-editor input, .explanation-editor textarea { width: 100%; padding: 10px; font-size: var(--reading-font-size, 13px); line-height: 1.8; }
+.explanation-editor textarea { min-height: 160px; resize: vertical; }
+.explanation-editor > small { color: var(--muted); font-size: .77rem; }
+.explanation-editor .inline-error { margin: 8px 0; }
+@media(max-width:700px) { .sidebar { position: fixed; } }

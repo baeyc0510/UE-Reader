@@ -1,0 +1,52 @@
+/* Saved explanations: file list → explanations of one file. */
+.search-controls>.icon-button{align-self:center}
+.saved-files{max-height:58vh;overflow:auto;padding:0 12px 16px}
+.saved-files>button{display:flex;align-items:center;width:100%;gap:14px;padding:14px 12px;text-align:left;color:var(--muted);border-top:1px solid var(--border)}
+.saved-files>button:hover{background:var(--surface)}
+.saved-files>button>div{flex:1;min-width:0}
+.saved-files strong{display:block;font-size:0.92308rem;font-weight:500;color:var(--text)}
+.saved-files strong small{margin-left:8px;font-size:0.69231rem;color:var(--accent)}
+.saved-files div>span{display:block;margin-top:5px;font-size:0.69231rem;overflow-wrap:anywhere}
+.saved-files em{display:block;margin-top:5px;font-style:normal;font-size:0.76923rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved-file-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:0.69231rem;white-space:nowrap}
+.saved-file-meta b{color:var(--accent);font-weight:500}
+.saved-list>article.older-revision{opacity:.72}
+
+/* Agent selection and typed model IDs. */
+.agent-settings .connection-box{margin:10px 0}
+
+/* Symbol search results and the code index indicator. */
+.symbol-scope{color:var(--muted);font-weight:400}
+.symbol-kind{margin-left:8px;font-style:normal;font-size:0.69231rem;padding:1px 6px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.symbol-kind.class,.symbol-kind.struct,.symbol-kind.enum,.symbol-kind.union{color:#006c70}
+.symbol-kind.function{color:#155ca0}
+.symbol-kind.declaration{color:var(--muted)}
+.lookup-filter{display:inline-block;margin-right:8px;padding:1px 7px;border-radius:8px;background:var(--accent-bg);color:var(--accent)}
+.code-index-status{display:inline-flex;align-items:center;gap:4px}
+
+/* Refining saved explanations: file checklist, request, options. */
+.refine-form{display:flex;flex-direction:column;gap:12px}
+.refine-files-head{display:flex;align-items:center;gap:10px;font-size:0.84615rem}
+.refine-files-head>span{color:var(--muted);font-size:0.76923rem}
+.refine-filter{margin-left:auto;display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted)}
+.refine-filter input{border:0;background:none;padding:0;width:150px;font-size:0.76923rem}
+.refine-files{max-height:34vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.refine-files>label{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--border);cursor:pointer;color:var(--muted)}
+.refine-files>label:first-child{border-top:0}
+.refine-files>label:hover,.refine-files>label.checked{background:var(--surface)}
+.refine-files>label>span{flex:1;min-width:0}
+.refine-files strong{display:block;font-weight:500;color:var(--text);font-size:0.84615rem}
+.refine-files small{display:block;font-size:0.69231rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.refine-files em{font-style:normal;font-size:0.69231rem;white-space:nowrap}
+.refine-form .field-label{margin:0}
+.refine-form textarea.refine-request{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:96px;max-height:240px;resize:vertical;background:var(--bg);color:var(--text)}
+.refine-examples{display:flex;flex-wrap:wrap;gap:6px}
+.refine-examples button{padding:4px 10px;border:1px solid var(--border);border-radius:12px;font-size:0.73077rem;color:var(--muted)}
+.refine-examples button:hover{color:var(--accent);border-color:var(--accent)}
+.refine-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.refine-options label{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.refine-options strong{display:block;font-size:0.84615rem;font-weight:500}
+.refine-options small{display:block;margin-top:3px;font-size:0.73077rem;color:var(--muted);line-height:1.6}
+.refine-form .field-help{margin:0}
+.refine-summary{margin-top:8px;font-size:0.84615rem}
+@media (max-width:700px){.refine-options{grid-template-columns:1fr}}

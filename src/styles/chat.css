@@ -1,0 +1,38 @@
+/* Chat header in the question tab: current title, history list, new chat. */
+.chat-header{position:relative;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg)}
+.chat-bar{display:flex;align-items:center;gap:6px;height:42px;padding:0 14px 0 10px}
+.chat-switch{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:5px;color:var(--muted);flex-shrink:0}
+.chat-switch:hover,.chat-switch[aria-expanded=true]{background:var(--hover);color:var(--text)}
+.chat-switch svg{transition:transform .15s}.chat-switch svg.flipped{transform:rotate(180deg)}
+.chat-count{font-size:0.69231rem;border:1px solid var(--border);border-radius:8px;padding:0 5px}
+.chat-title{flex:1;min-width:0;font-size:0.92308rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.chat-title-input{flex:1;min-width:0;padding:5px 8px;font-size:0.92308rem}
+.new-chat{display:flex;align-items:center;gap:4px;padding:5px 9px;font-size:0.76923rem;color:var(--accent);border:1px solid var(--border);border-radius:6px;white-space:nowrap;flex-shrink:0}
+.new-chat:disabled{opacity:.55}
+.chat-list{position:absolute;left:8px;right:8px;top:40px;z-index:4;max-height:min(420px,60vh);overflow:auto;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px #0000002b}
+.chat-item>button{display:flex;align-items:flex-start;gap:9px;width:100%;padding:9px 10px;text-align:left;border-radius:6px;color:var(--muted)}
+.chat-item>button:hover,.chat-item>button:focus-visible{background:var(--hover)}
+.chat-item.active>button{background:var(--accent-bg);color:var(--accent)}
+.chat-item>button>svg{flex-shrink:0;margin-top:3px}
+.chat-item span{display:flex;flex-direction:column;min-width:0;gap:2px}
+.chat-item strong{color:var(--text);font-size:0.84615rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-item small{font-size:0.69231rem}
+.chat-item.editing{padding:6px}.chat-item.editing input{width:100%;padding:7px 9px}.chat-item.editing small{color:var(--accent)}
+.chat-header>.model-warning{margin:0 14px 8px}
+
+/* Generic floating context menu. */
+.context-menu{position:fixed;z-index:20;min-width:150px;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 12px 34px #00000030}
+.context-menu>button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:5px;font-size:0.84615rem;color:var(--text);text-align:left}
+.context-menu>button:hover,.context-menu>button:focus-visible{background:var(--hover);outline:none}
+.context-menu>button.danger{color:#c2410c}
+[data-theme=dark] .context-menu>button.danger{color:#f0a36f}
+.context-menu>button.divider{margin-top:5px;position:relative}
+.context-menu>button.divider::before{content:'';position:absolute;left:6px;right:6px;top:-3px;border-top:1px solid var(--border)}
+.context-menu>button:disabled{opacity:.45;cursor:default;background:none}
+.context-menu>button>kbd{margin-left:auto;padding-left:18px;font-size:0.69231rem;color:var(--muted);font-family:inherit}
+
+/* Tabs: drag to reorder. */
+.tab.dragging{opacity:.5}
+.tab.drop-target{box-shadow:inset 2px 0 0 var(--accent)}
+.tab-favorite{flex-shrink:0;color:#c79a3a;fill:currentColor}
+.tabs{scrollbar-width:thin}

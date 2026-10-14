@@ -1,0 +1,36 @@
+/* A trailing spacer allows the last explanation to align near the top too. */
+.notes-scroll::after { content: ''; display: block; height: max(0px, calc(100% - 64px)); flex-shrink: 0; }
+.explorer-scroll { display: flex; flex-direction: column; overflow: hidden; min-height: 0; padding-bottom: 0; }
+.explorer-scroll > :not(.tree-viewport) { flex-shrink: 0; }
+.explorer-scroll .side-section { max-height: 18%; overflow: auto; }
+.tree-viewport { flex: 1; min-height: 100px; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; }
+.virtual-tree { position: relative; }
+.virtual-tree-row { position: absolute; left: 0; width: 100%; }
+.tree-folder > summary { overflow: hidden; padding-right: 10px; }
+.tree-folder > summary span { overflow: hidden; text-overflow: ellipsis; }
+.tree-folder svg, .tree-file svg { flex-shrink: 0; }
+.tree-file:focus-within .favorite { opacity: 1; }
+.setting-row { gap: 16px; flex-wrap: wrap; }
+.right-tabs { min-height: 3.54rem; height: auto; }
+.right-tabs > button { min-height: 3.54rem; }
+
+/* Workspace folders: main folder plus mounted folders. */
+.folder-list{list-style:none;margin:0 0 16px;padding:0;border:1px solid var(--border);border-radius:8px}
+.folder-list li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--border);color:var(--muted)}
+.folder-list li:first-child{border-top:0}
+.folder-list li>span{flex:1;min-width:0}
+.folder-list strong{display:block;font-weight:500;color:var(--text);font-size:0.84615rem}
+.folder-list small{display:block;font-size:0.73077rem;overflow-wrap:anywhere}
+.folder-add{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}
+.folder-add .field-label{margin:0}
+.folder-add .primary{min-height:38px;padding:0 14px;border-radius:6px;gap:6px}
+.folders-modal .field-help{margin:0 0 14px}
+.folders-modal .inline-error{margin-top:10px}
+.tree-folder.mounted>summary svg:nth-child(2){color:var(--accent)}
+.explorer-folders{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.explorer-folders span{font-size:0.69231rem;padding:0 6px;border-radius:8px;background:var(--accent-bg);color:var(--accent)}
+@media (max-width:700px){.folder-add{grid-template-columns:1fr}}
+.virtual-tree-row .scope-mark{color:var(--accent);margin-left:2px}
+.tree-folder.in-search-scope>summary>span,.tree-file.in-search-scope>button>span{color:var(--accent)}
+.role-settings .role-field{margin-top:10px}
+.role-settings .role-field textarea{min-height:110px}

@@ -1,0 +1,12 @@
+/* Keep the reading surface comfortable at standard Windows display scaling. */
+@media(min-width:961px){
+ .note-body,.file-overview p,.full-note{font-size:1rem;line-height:1.9}
+ .note-card h2{font-size:1.15385rem}.note-body code,.file-overview code,.full-note code{font-size:0.92308rem}
+ .tree-file>button:first-child,.tree-folder>summary,.tab>button:first-child{font-size:0.92308rem}
+ .section-label{font-size:0.92308rem}.input-box textarea{font-size:0.92308rem}
+ .context-label,.context-label small,.context-chips>span,.prompt-presets button{font-size:0.76923rem}
+ .context-chips b{font-size:0.69231rem}.sync-status,.text-action{font-size:0.76923rem}
+ .note-origin,.note-footer>small,.note-footer button,.line-link,.evidence>span,.evidence button{font-size:0.76923rem}
+ .breadcrumb .path,.top-action{font-size:0.84615rem}.input-box>div>span{font-size:0.69231rem}
+ .conversation-heading{font-size:0.84615rem}.note-meta{margin-bottom:12px}
+}

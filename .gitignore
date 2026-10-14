@@ -1,0 +1,24 @@
+# Dependencies and build output
+node_modules/
+dist/
+release/
+
+# Runtime data, screenshots, test output and logs
+.runtime/
+test-results/
+playwright-report/
+*.log
+*.tmp
+
+# Local editor and agent settings
+.claude/settings.local.json
+.vscode/
+.vs/
+.idea/
+
+# Environment and OS files
+.env
+.env.*
+Thumbs.db
+Desktop.ini
+.DS_Store
