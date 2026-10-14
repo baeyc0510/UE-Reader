@@ -139,6 +139,7 @@ options = { directory, cwd?, prompt, instructions, mode, responseSchema, model, 
 ## 클라이언트
 
 - `Reader.tsx`는 상태를 모으고 패널에 props로 전달합니다. 절 구분: 에이전트 → 파일/해설 → 채팅 → 교차 링크 → 폴링 → 탐색 기록 → 코드 선택 → 스크롤 연결 → 요청 → 렌더.
+- 렌더 성능: `Reader`는 스크롤·마우스 올림마다 다시 그려지므로 `Markdown`(파싱이 비쌈)과 `NoteCard`는 `memo`입니다. 이들에 넘기는 콜백은 `hooks/useEventCallback`으로 고정하고 인라인 함수·매번 새 배열을 넘기지 마세요. 스크롤 위치는 `scrollPositions` ref에 모았다가 스크롤이 300ms 멈추면 세션에 저장합니다. 회귀 시험: `tests/ui/large-reader.spec.mjs`의 "never rebuild explanation cards".
 - 해설 표시 순서는 `lib/notes.ts#teachingOrder`(생성 순서 → 에이전트가 정한 `order`). 라인 기준 탐색은 `findNoteAtLine`.
 - 활성 채팅은 `Session.activeChatId`(`undefined`=미선택→최근 채팅, `''`=새 채팅). 질문을 보내면 서버가 채팅을 만들고 `job.chatId`로 알려 줍니다.
 - 문구는 한국어. 테스트가 `aria-label`·버튼 이름을 사용하므로 바꿀 때 `tests/ui/*.spec.mjs`를 함께 검색하세요.

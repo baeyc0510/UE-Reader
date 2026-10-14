@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ArrowUpRight, CircleHelp, FileCode2, History } from 'lucide-react';
 import { NoteBody } from './NoteBody';
 import { AnalysisDiagrams } from './AnalysisDiagrams';
@@ -14,7 +15,8 @@ export type NoteCardActions = {
 };
 
 // One explanation section: overview, linked details, diagrams, evidence and its versions.
-export function NoteCard({ note: n, index, active, versions, ...p }: { note: Note; index: number; active: boolean; versions: Note[] } & NoteCardActions) {
+// Memoized: the reader re-renders on every scroll step, so actions must be stable (useEventCallback).
+export const NoteCard = memo(function NoteCard({ note: n, index, active, versions, ...p }: { note: Note; index: number; active: boolean; versions: Note[] } & NoteCardActions) {
   const detached = isDetached(n), reattach = p.contexts.find(c => c.path === n.path);
   return <article data-note={n.id} className={`note-card ${active ? 'active' : ''} ${detached ? 'stale' : ''}`}>
     <div className="note-meta"><span className="note-number">{String(index + 1).padStart(2, '0')}</span><button className="line-link" onClick={() => p.jump(n)} disabled={detached}>L{n.start}–{n.end}<ArrowUpRight size={12}/></button><span className="note-origin">{n.origin === 'sample' ? '예제' : p.agentLabel(n.agent)} · v{n.revision}</span></div>
@@ -32,4 +34,4 @@ export function NoteCard({ note: n, index, active, versions, ...p }: { note: Not
       {versions.length > 1 && <select aria-label="해설 버전" value={n.id} onChange={e => p.change(e.target.value, { selected: true })}>{versions.map(v => <option key={v.id} value={v.id}>v{v.revision}</option>)}</select>}
     </div></footer>
   </article>;
-}
+});

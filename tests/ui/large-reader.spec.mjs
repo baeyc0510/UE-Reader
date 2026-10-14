@@ -102,3 +102,28 @@ test('gutter dragging autoscrolls across virtual source rows and selected lines 
   await page.locator('.code-line.selected .line-number').last().click();
   await expect(page.locator('.code-line.selected')).toHaveCount(0);
 });
+
+test('scrolling and hovering never rebuild explanation cards; scroll positions are saved once scrolling pauses', async ({ page }) => {
+  const path = 'Many/Unit25000.cpp';
+  const text = n => `**${n}단계**: \`FReferenceCollector\`로 순회합니다. [\`Mark\`](source:${path}#L${n + 1})\n\n| 플래그 | 의미 |\n| --- | --- |\n| \`Unreachable\` | 미도달 |`;
+  const notes = Array.from({ length: 12 }, (_, k) => ({ id: `n${k}`, groupId: `n${k}`, revision: 1, path, start: k * 40 + 1, end: k * 40 + 30, title: `해설 ${k}`, overview: text(k),
+    details: [0, 1, 2].map(d => ({ title: `블록 ${d}`, text: text(k * 10 + d), start: k * 40 + 1 + d * 9, end: k * 40 + 9 + d * 9 })),
+    body: '', summary: '요약', selected: true, sourceState: 'same', evidence: [], snapshot: '', createdAt: new Date().toISOString(), order: k }));
+  const saved = [];
+  await mockWorkspace(page, { source: Array.from({ length: 500 }, (_, i) => `// line ${i + 1}`).join('\n'), files: [path], notes });
+  await page.route('**/api/workspaces/large-fixture/session', async route => { saved.push(route.request().postDataJSON()); await route.fulfill({ json: { ok: true } }); });
+  await page.goto('/');
+  await expect(page.locator('.note-card')).toHaveCount(12);
+  await expect(page.locator('.md-table')).toHaveCount(48);
+  // Memoized cards and Markdown: linked scrolling and sentence hover only toggle attributes, never rebuild nodes.
+  await page.locator('.notes-scroll').evaluate(el => { window.__rebuilt = 0; new MutationObserver(list => { window.__rebuilt += list.filter(m => m.type === 'childList').length; }).observe(el, { childList: true, subtree: true }); });
+  await page.locator('.code-viewport').evaluate(async el => { for (let i = 0; i < 20; i++) { el.scrollTop += 120; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); } });
+  await page.locator('.note-sentence').nth(4).hover(); await page.locator('.note-sentence').nth(7).hover();
+  await expect(page.locator('.sentence-highlight')).not.toHaveCount(0);
+  expect(await page.evaluate(() => window.__rebuilt)).toBe(0);
+  // The pause commits the latest position; a source link inside Markdown still navigates.
+  const top = await page.locator('.code-viewport').evaluate(el => el.scrollTop);
+  await expect.poll(() => saved.at(-1)?.positions?.[path]?.code).toBe(top);
+  await page.locator('.note-card').first().locator('button.inline-link').first().click();
+  await expect(page.locator('[data-line="2"]')).toBeVisible();
+});

@@ -29,6 +29,7 @@ import { useFileIndex } from './hooks/useFileIndex';
 import { useUsage } from './hooks/useUsage';
 import { useChats } from './hooks/useChats';
 import { useCodeIndex } from './hooks/useCodeIndex';
+import { useEventCallback } from './hooks/useEventCallback';
 import { applyAppearance, defaultAppearance, fontStack, type Appearance } from './lib/appearance';
 import { basename, errorText, stem } from './lib/format';
 import { findNoteAtLine, isDetached, teachingOrder } from './lib/notes';
@@ -60,7 +61,7 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
   // Agents: which CLI answers, its models and login state.
   const [agents, setAgents] = useState<AgentInfo[]>([]), [agentId, setAgentId] = useState('codex'), [models, setModels] = useState<Record<string, string | null>>({});
   const agent = agents.find(a => a.id === agentId) || fallbackAgent(agentId);
-  const agentLabel = (id?: string) => (agents.find(a => a.id === (id || 'codex')) || fallbackAgent(id || 'codex')).label;
+  const agentLabel = useCallback((id?: string) => (agents.find(a => a.id === (id || 'codex')) || fallbackAgent(id || 'codex')).label, [agents]);
   const model = models[agentId] ?? null;
   const [status, setStatus] = useState<AgentStatus>({ available: false, authenticated: false, message: '연결 확인 중' });
   const checkStatus = () => { setStatus(s => ({ ...s, message: '연결 확인 중…' })); api<AgentStatus>(`/agents/${agentId}/status`).then(setStatus).catch(report); };
@@ -93,6 +94,8 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
   const lastSide = useRef<'code' | 'notes'>('code'), autoNotesUntil = useRef(0), requestCounter = useRef(0), pendingLine = useRef<number | null>(null);
   const nav = useRef<{ path: string; line?: number; code?: number; notes?: number }[]>([]), navIndex = useRef(-1), [, updateNav] = useState(0);
   const pendingPosition = useRef<{ code: number; notes: number } | null>(null), pendingFlash = useRef(false);
+  const scrollPositions = useRef<Session['positions']>({}), positionTimer = useRef<ReturnType<typeof setTimeout>>();
+  const flushPositions = () => { clearTimeout(positionTimer.current); const pending = scrollPositions.current; scrollPositions.current = {}; if (Object.keys(pending).length) update(s => ({ ...s, positions: { ...s.positions, ...pending } })); };
   const closedTabs = useRef<string[]>([]), lastRefine = useRef<RefineRequest>({ paths: [], question: '', allowAdd: false, allowDelete: false });
   const [refineInitial, setRefineInitial] = useState<RefineRequest>(lastRefine.current);
 
@@ -198,7 +201,7 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
       setSource(data.source); setNotes(data.notes); setFileError(data.error || '');
       if (restore) {
         setActiveNoteId('');
-        const position = pendingPosition.current || sessionRef.current.positions[session.active];
+        const position = pendingPosition.current || scrollPositions.current[session.active] || sessionRef.current.positions[session.active];
         pendingPosition.current = null;
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (pendingLine.current !== null) { codeRef.current?.go(pendingLine.current); if (pendingFlash.current) codeRef.current?.flash(pendingLine.current); pendingLine.current = null; }
@@ -285,6 +288,8 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
     previewSource(range, true);
   }
   useEffect(() => { setSourceSelection(null); }, [session.active, workspaceId]);
+  // Positions still waiting for the pause belong to the previous workspace's session.
+  useEffect(() => () => { clearTimeout(positionTimer.current); scrollPositions.current = {}; }, [workspaceId]);
   useEffect(() => {
     if (!selectionReveal || session.rightTab !== 'notes') return;
     const container = notesRef.current, target = container?.querySelector<HTMLElement>('.source-linked-highlight');
@@ -292,7 +297,13 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
   }, [selectionReveal, session.rightTab]);
 
   // Scroll link between code lines and explanation cards.
-  function position(side: 'code' | 'notes', top: number) { update(s => ({ ...s, positions: { ...s.positions, [s.active]: { code: s.positions[s.active]?.code || 0, notes: s.positions[s.active]?.notes || 0, [side]: top } } })); }
+  // Scroll events fire every frame, so positions collect in a ref and reach the session (one re-render
+  // and one save) only after scrolling pauses.
+  function position(side: 'code' | 'notes', top: number) {
+    const file = sessionRef.current.active, old = scrollPositions.current[file] || sessionRef.current.positions[file];
+    scrollPositions.current[file] = { code: old?.code || 0, notes: old?.notes || 0, [side]: top };
+    clearTimeout(positionTimer.current); positionTimer.current = setTimeout(flushPositions, 300);
+  }
   function alignNotes(note: Note) {
     if (session.rightTab === 'questions') return;
     const container = notesRef.current, el = container?.querySelector<HTMLElement>(`[data-note="${note.id}"]`);
@@ -456,11 +467,14 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   });
 
+  // Stable actions let the memoized explanation cards and Markdown skip re-rendering while the reader scrolls.
+  const stable = { navigate: useEventCallback(openFile), preview: useEventCallback(previewSentence), save: useEventCallback(saveNoteContent), jump: useEventCallback(jumpNote), ask: useEventCallback(askAboutNote),
+    showQuestion: useEventCallback(showQuestion), regenerate: useEventCallback((note: Note) => generate('explain', note)), change: useEventCallback(changeNote) };
   const explanationPanel = <ExplanationPanel file={session.active} notes={selectedNotes} allNotes={notes} activeNote={activeNote} linked={session.linked} outlineOpen={outlineOpen} demo={!!workspace?.demo}
     notesRef={notesRef} onToggleOutline={() => setOutlineOpen(v => !v)} onGenerate={kind => generate(kind)} onRefine={() => openRefine(session.active ? [session.active] : [])} onScroll={onNotesScroll} onUserScroll={() => { autoNotesUntil.current = 0; }}
     workspaceId={workspaceId} running={running} hasSource={!!source} selection={sourceSelection} contexts={session.contexts} agentLabel={agentLabel}
-    navigate={openFile} preview={previewSentence} save={saveNoteContent} jump={jumpNote} ask={askAboutNote} showQuestion={showQuestion}
-    rename={setRenaming} regenerate={note => generate('explain', note)} change={changeNote}/>;
+    navigate={stable.navigate} preview={stable.preview} save={stable.save} jump={stable.jump} ask={stable.ask} showQuestion={stable.showQuestion}
+    rename={setRenaming} regenerate={stable.regenerate} change={stable.change}/>;
 
   const questionPanel = <QuestionPanel workspaceId={workspaceId} agent={agent} agentLabel={agentLabel} model={model} onModelSettings={() => setModal('settings')}
     settings={conversationSettings} usage={usage} usageLoading={usageLoading} onRefreshUsage={() => refreshUsage(true)}
@@ -475,7 +489,7 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
     conversations={conversations} job={job?.workspaceId === workspaceId ? job : null}
     focusConversation={focusConversation} onShowQuestion={showQuestion} onShowExplanation={showExplanation} onExplainAnswer={explainAnswer} onVisualizeAnswer={visualizeAnswer}
     onDraft={text => update(s => ({ ...s, questionDraft: text, drafts: { ...s.drafts, [s.active]: text } }))} onSend={() => generate('question')}
-    onRemove={path => { update({ contexts: session.contexts.filter(c => c.path !== path) }); if (sourceSelection?.path === path) setSourceSelection(null); }} onNavigate={openFile}
+    onRemove={path => { update({ contexts: session.contexts.filter(c => c.path !== path) }); if (sourceSelection?.path === path) setSourceSelection(null); }} onNavigate={stable.navigate}
     onCancel={() => job && api(`/jobs/${job.id}/cancel`, json('POST')).catch(report)} onDismiss={() => setJob(null)} onRestoreNotes={restoreNotes}
     onRetry={() => { if (!job) return; if (job.kind === 'refine') return refineNotes(lastRefine.current); const origin = conversations.find(c => c.id === job.sourceConversationId); if (origin && job.kind === 'question') visualizeAnswer(origin); else if (origin) explainAnswer(origin, job.requestPath || ''); else void generate(job.kind, undefined, job.kind === 'question' ? job.question : undefined); }}
     onRetrySave={() => job && api<Job>(`/jobs/${job.id}/retry-save`, json('POST')).then(next => { setJob(next); refreshFile(false); refreshChats(); refreshConversations(); }).catch(report)}/>;
