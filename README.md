@@ -57,6 +57,14 @@
 
 ## 설치
 
+### 내려받아 실행 (권장)
+
+1. [Releases](https://github.com/baeyc0510/UE-Reader/releases/latest)에서 `UE-Reader-<버전>-win-x64.zip`을 내려받아 원하는 위치에 압축을 풉니다.
+2. 압축을 푼 폴더의 `UE Reader.exe`를 실행합니다.
+3. 코드 서명이 없는 앱이라 처음 실행할 때 Windows SmartScreen 경고가 나올 수 있습니다. **추가 정보 → 실행**을 누르세요.
+
+### 소스에서 빌드
+
 이 저장소 폴더에서 PowerShell을 열고 실행합니다.
 
 ```powershell
@@ -123,3 +131,7 @@ npm run test:desktop   # Electron 스모크 시험
 - [분석 개선 기록](Docs/분석-개선-2026-10-09.md): 실제 사용 기록으로 본 해설 품질 개선
 
 예제 작업공간은 직접 작성한 액터 코드입니다. Unreal Engine 원본 소스를 포함하지 않습니다.
+
+## 라이선스
+
+[MIT](LICENSE) © 2026 baeyc0510
