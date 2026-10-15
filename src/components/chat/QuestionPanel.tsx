@@ -7,6 +7,7 @@ import { Composer } from './Composer';
 import { ConversationItem } from './ConversationItem';
 import { readable } from './readable';
 import { ResearchNotesView } from './ResearchNotes';
+import { useEventCallback } from '../../hooks/useEventCallback';
 import type { AgentInfo, Attachment, Chat, Context, Conversation, ConversationSettings, Job, Usage } from '../../types';
 
 export type QuestionPanelProps = {
@@ -24,7 +25,7 @@ export type QuestionPanelProps = {
   focusConversation: { id: string; serial: number }; onShowQuestion: (conversationId: string, chatId?: string) => void;
   onShowExplanation: (path: string, start: number, id?: string) => void;
   onExplainAnswer: (conversation: Conversation, path: string) => void; onVisualizeAnswer: (conversation: Conversation) => void;
-  onDraft: (text: string) => void; onSend: () => void; onRemove: (path: string) => void;
+  onDraft: (text: string) => void; onSend: (text: string) => void; onRemove: (path: string) => void;
   onNavigate: (path: string, line?: number) => void;
   onCancel: () => void; onDismiss: () => void; onRetry: () => void; onRetrySave: () => void; onRestoreNotes: (ids: string[]) => void;
 };
@@ -43,6 +44,7 @@ export function QuestionPanel(p: QuestionPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null), panelRef = useRef<HTMLDivElement>(null), composerRef = useRef<HTMLDivElement>(null);
   const follow = useRef(true), [away, setAway] = useState(false);
   const running = p.job?.status === 'running', shown = p.tab === 'questions';
+  const showNotes = useEventCallback(() => p.onTab('notes'));
   const questionJob = p.job?.kind === 'question' ? p.job : null;
   const activeJob = questionJob && (questionJob.chatId || '') === p.activeChatId && !p.conversations.some(c => c.id === questionJob.id) ? questionJob : null;
   const explanationJob = p.job && p.job.kind !== 'question' ? p.job : null;
@@ -78,8 +80,8 @@ export function QuestionPanel(p: QuestionPanelProps) {
       <div className="conversation-scroll" ref={scrollRef} onScroll={() => { const el = scrollRef.current!; const near = el.scrollHeight - el.scrollTop - el.clientHeight < 70; follow.current = near; setAway(!near); }}>
         {p.conversations.map((c, index) => <ConversationItem key={c.id} c={c} newSession={!!c.sessionId && c.sessionId !== p.conversations[index - 1]?.sessionId}
           workspaceId={p.workspaceId} hasWorkspace={p.hasWorkspace} hasFile={p.hasFile} running={running} retryable={p.job?.id === c.id} explainingThis={running && explanationJob?.sourceConversationId === c.id}
-          agentLabel={p.agentLabel} onNavigate={p.onNavigate} onVisualize={() => p.onVisualizeAnswer(c)} onExplain={file => p.onExplainAnswer(c, file)} onShowExplanation={p.onShowExplanation}
-          onRetry={p.onRetry} onShowNotes={() => p.onTab('notes')}/>)}
+          agentLabel={p.agentLabel} onNavigate={p.onNavigate} onVisualize={p.onVisualizeAnswer} onExplain={p.onExplainAnswer} onShowExplanation={p.onShowExplanation}
+          onRetry={p.onRetry} onShowNotes={showNotes}/>)}
         {activeJob && <article className={`conversation live-conversation ${activeJob.status}`} aria-label="현재 요청">
           <div className="question"><span>Q</span><strong>{activeJob.question || '코드 해설 요청'}</strong></div>
           <div className="live-status" role="status">{running ? <Loader2 size={15} className="spin"/> : activeJob.status === 'complete' ? <Check size={15}/> : <CircleHelp size={15}/>}<span>{running ? activeJob.stage : activeJob.status === 'complete' ? '답변 완료 · 저장됨' : activeJob.error || '요청 취소'}</span>{running ? <button onClick={p.onCancel}>취소</button> : <button aria-label="요청 상태 닫기" onClick={p.onDismiss}><X size={14}/></button>}</div>

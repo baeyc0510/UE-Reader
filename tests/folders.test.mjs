@@ -75,6 +75,8 @@ test('a search scope limits the agent search tools to chosen folders or files un
   assert.deepEqual((await tools('search_code', { query: 'Tick' })).results.map(r => r.path), ['Runtime/Actor.h']);
   assert.match((await tools('read_file', { path: 'MyGame/Source/MyPawn.cpp', start: 1, end: 2 })).content, /include/);
   assert.doesNotMatch(buildRequestPrompt({ question: 'q', history: [], context: [] }), /Search scope/);
+  // Let the request finish saving; removing the data folder under a running job can hang on Windows.
+  for (let i = 0; i < 200 && (await f.request(`/jobs/${job.data.id}`)).data.status === 'running'; i++) await new Promise(r => setTimeout(r, 25));
 });
 
 test('agents choose their own search scope: folder layout, code index symbols and indexed code search over the bridge', async t => {

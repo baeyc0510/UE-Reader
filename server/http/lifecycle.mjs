@@ -22,7 +22,7 @@ export function installLifecycle(app, { jobs, store, projectRoot, onShutdown }) 
     if (writes > 1) return res.status(409).json({ error: '다른 작업을 저장하고 있습니다. 잠시 후 다시 종료하세요.' });
     closing = true;
     try {
-      await store.queue;
+      await store.flush();
       res.once('finish', () => onShutdown());
       res.json({ ok: true });
     } catch (error) { closing = false; next(error); }

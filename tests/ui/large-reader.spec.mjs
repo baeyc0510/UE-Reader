@@ -127,3 +127,24 @@ test('scrolling and hovering never rebuild explanation cards; scroll positions a
   await page.locator('.note-card').first().locator('button.inline-link').first().click();
   await expect(page.locator('[data-line="2"]')).toBeVisible();
 });
+
+test('typing stays inside the composer until a pause, and a ready code index is not polled every few seconds', async ({ page }) => {
+  const path = 'Many/Unit25000.cpp', saves = [];
+  let polls = 0;
+  await mockWorkspace(page, { source: '// line 1', files: [path] });
+  await page.route('**/api/workspaces/large-fixture/code-index', route => { polls++; return route.fulfill({ json: { status: 'ready', processed: 1, total: 1, parsed: 0, files: 1, symbols: 1, tokens: 1, builtAt: null, error: '' } }); });
+  await page.route('**/api/workspaces/large-fixture/session', async route => { saves.push(route.request().postDataJSON()); await route.fulfill({ json: { ok: true } }); });
+  await page.goto('/');
+  const box = page.getByRole('textbox', { name: '코드 질문', exact: true }), state = page.locator('.statusbar button').filter({ hasText: /저장/ });
+  await box.click();
+  await expect(state).toContainText('저장됨');
+  const start = polls;
+  // Per-key updates of the reader's session would show "저장 중" while typing.
+  await page.keyboard.type('inventory system', { delay: 40 });
+  expect(await state.textContent()).toContain('저장됨');
+  await expect(box).toHaveValue('inventory system');
+  // After a pause the draft reaches the session and is saved.
+  await expect.poll(() => saves.at(-1)?.questionDraft).toBe('inventory system');
+  await page.waitForTimeout(4500);
+  expect(polls - start).toBeLessThanOrEqual(1);
+});

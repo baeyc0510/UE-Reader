@@ -134,12 +134,15 @@ options = { directory, cwd?, prompt, instructions, mode, responseSchema, model, 
 - `settings` `{ agent, models{[agent]}, retainSession, historyCount, instructionPrompt, rolePrompt?, researchRolePrompt?, appearance, extendedThinking? }` (없으면 꺼짐)
 - `agentSessions[chatId]` `{ id, provider, threadId?, root, turns? }` · `modelCatalogs[agent]`
 
+저장: `Store.update`는 전체를 복제·직렬화해 다시 쓰므로(데스크톱에서는 입력을 전달하는 메인 프로세스에서 실행) 화면 상태(`PUT /session`)는 `Store.defer`로 메모리에 먼저 반영하고 2초 조용할 때나 다음 `update` 때 씁니다. 종료 경로는 `store.flush()`를 기다립니다.
+
 형식을 바꾸면 `DATA_VERSION`을 올리고 `migrate()`에 멱등 단계를 추가한 뒤 마이그레이션 테스트를 작성하세요.
 
 ## 클라이언트
 
 - `Reader.tsx`는 상태를 모으고 패널에 props로 전달합니다. 절 구분: 에이전트 → 파일/해설 → 채팅 → 교차 링크 → 폴링 → 탐색 기록 → 코드 선택 → 스크롤 연결 → 요청 → 렌더.
 - 렌더 성능: `Reader`는 스크롤·마우스 올림마다 다시 그려지므로 `Markdown`(파싱이 비쌈)과 `NoteCard`는 `memo`입니다. 이들에 넘기는 콜백은 `hooks/useEventCallback`으로 고정하고 인라인 함수·매번 새 배열을 넘기지 마세요. 스크롤 위치는 `scrollPositions` ref에 모았다가 스크롤이 300ms 멈추면 세션에 저장합니다. 회귀 시험: `tests/ui/large-reader.spec.mjs`의 "never rebuild explanation cards".
+- 입력·폴링: 질문 입력 칸(`Composer`)은 글자를 자체 상태에 두고 0.2초 멈춤·포커스 이탈·전송 때만 세션에 반영합니다. 종료·작업공간 전환 전에는 `lib/pending-edits`의 `flushPendingEdits`를 `flushSync`로 실행한 뒤 저장합니다(`Reader#settleEdits`). `ConversationItem`도 `memo`입니다. 폴링 훅은 응답이 같으면 상태를 바꾸지 않고(코드 인덱스·작업 상태), 준비된 코드 인덱스는 30초 간격으로만 확인합니다. 회귀 시험: "typing stays inside the composer".
 - 해설 표시 순서는 `lib/notes.ts#teachingOrder`(생성 순서 → 에이전트가 정한 `order`). 라인 기준 탐색은 `findNoteAtLine`.
 - 활성 채팅은 `Session.activeChatId`(`undefined`=미선택→최근 채팅, `''`=새 채팅). 질문을 보내면 서버가 채팅을 만들고 `job.chatId`로 알려 줍니다.
 - 문구는 한국어. 테스트가 `aria-label`·버튼 이름을 사용하므로 바꿀 때 `tests/ui/*.spec.mjs`를 함께 검색하세요.

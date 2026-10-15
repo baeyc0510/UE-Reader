@@ -70,7 +70,7 @@ async function shutdown() {
   service.agents.close(); await service.codeIndexes.close();
   // Cancellation records must finish before closing the embedded backend.
   for (let i = 0; i < 100 && [...service.jobs.values()].some(j => j.status === 'running'); i++) await new Promise(resolve => setTimeout(resolve, 50));
-  await service.store.queue;
+  await service.store.flush();
   server.closeIdleConnections();
   await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
   window?.destroy(); app.quit();

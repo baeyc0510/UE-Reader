@@ -598,3 +598,23 @@ test('an answer can explicitly request explanations across verified files withou
   assert.equal(job.generatedNotes.length, 2); assert.equal(f.store.data.notes.filter(n => n.sourceConversationId === q.data.id).length, 2);
   const history = (await f.request(`/workspaces/${f.w.id}/conversations`)).data; assert.equal(history.length, 1); assert.equal(history[0].explanations.length, 2);
 });
+
+test('deferred screen-state writes apply at once, reach disk with the next write or flush, and survive reopening', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ue-reader-defer-'));
+  try {
+    const store = await new Store(dir).init(), disk = async () => JSON.parse(await fs.readFile(path.join(dir, 'reader.json'), 'utf8'));
+    await store.update(d => { d.settings.historyCount = 3; });
+    await store.defer(d => { d.sessions.w = { questionDraft: '초안' }; });
+    assert.equal(store.data.sessions.w.questionDraft, '초안', 'visible immediately');
+    assert.equal((await disk()).sessions.w, undefined, 'not written yet');
+    await store.update(d => { d.settings.historyCount = 4; });
+    assert.equal((await disk()).sessions.w.questionDraft, '초안', 'the next regular write carries it');
+    await store.defer(d => { d.sessions.w = { questionDraft: '마지막' }; });
+    await store.flush();
+    assert.equal((await disk()).sessions.w.questionDraft, '마지막');
+    assert.equal((await new Store(dir).init()).data.sessions.w.questionDraft, '마지막');
+    const before = (await fs.stat(path.join(dir, 'reader.json'))).mtimeMs;
+    await store.flush();
+    assert.equal((await fs.stat(path.join(dir, 'reader.json'))).mtimeMs, before, 'nothing pending, nothing written');
+  } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});

@@ -8,7 +8,7 @@ async function shutdown() {
   stopping = true;
   for (const j of jobs.values()) if (j.status === 'running') j.controller.abort();
   agents.close(); await codeIndexes.close();
-  await store.queue;
+  await store.flush();
   server.close(() => process.exit(0));
   server.closeIdleConnections();
 }

@@ -6,6 +6,9 @@ export type SessionUpdate = Partial<Session> | ((s: Session) => Session);
 
 // Per-workspace UI state with a debounced, serialized save. `settle()` flushes before
 // switching workspaces or shutting down and reports whether everything was stored.
+// Each save rewrites reader.json on the server (in the desktop app, on the process that also
+// delivers input), so saves wait for a longer pause instead of following every small change.
+const SAVE_DELAY_MS = 1000;
 export function useWorkspaceSession({ ready, workspaceId }: { ready: boolean; workspaceId: string }) {
   const [session, setSession] = useState<Session>(defaultSession);
   const sessionRef = useRef(session); sessionRef.current = session;
@@ -29,7 +32,7 @@ export function useWorkspaceSession({ ready, workspaceId }: { ready: boolean; wo
   useEffect(() => {
     if (!ready || !workspaceId) return;
     setSaveState('저장 중'); pendingSave.current = { workspaceId, session };
-    clearTimeout(saveTimer.current); saveTimer.current = setTimeout(flushSave, 450);
+    clearTimeout(saveTimer.current); saveTimer.current = setTimeout(flushSave, SAVE_DELAY_MS);
     return () => clearTimeout(saveTimer.current);
   }, [session, ready, workspaceId, flushSave]);
   useEffect(() => {

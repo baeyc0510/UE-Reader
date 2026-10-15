@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BrainCircuit, ChevronDown, Crosshair, FileCode2, FileText, Loader2, Paperclip, RefreshCw, Search, Send, X } from 'lucide-react';
 import { basename, date, duration } from '../../lib/format';
+import { useEventCallback } from '../../hooks/useEventCallback';
+import { registerPendingEdit } from '../../lib/pending-edits';
 import type { AgentInfo, Attachment, Context, ConversationSettings, Usage } from '../../types';
 
 type Props = {
@@ -10,8 +12,21 @@ type Props = {
   extended: boolean; onExtended: (on: boolean) => void;
   searchScope: string[]; onSearchScope: (paths: string[]) => void;
   onModelSettings: () => void; onResetSession: () => Promise<void>; onRefreshUsage: () => void;
-  onDraft: (text: string) => void; onSend: () => void; onCancel: () => void; onRemove: (path: string) => void;
+  onDraft: (text: string) => void; onSend: (text: string) => void; onCancel: () => void; onRemove: (path: string) => void;
 };
+
+// Typing stays inside the composer: the reader (and every chat item) re-renders only when typing
+// pauses, the box loses focus or the question is sent. Outside changes to the draft are adopted.
+const DRAFT_DELAY_MS = 200;
+function useLocalDraft(draft: string, onDraft: (text: string) => void) {
+  const [text, setText] = useState(draft);
+  const sent = useRef(draft), timer = useRef<ReturnType<typeof setTimeout>>();
+  const flush = useEventCallback(() => { clearTimeout(timer.current); if (text !== sent.current) { sent.current = text; onDraft(text); } });
+  const change = (value: string) => { setText(value); clearTimeout(timer.current); timer.current = setTimeout(flush, DRAFT_DELAY_MS); };
+  useEffect(() => { if (draft !== sent.current) { sent.current = draft; clearTimeout(timer.current); setText(draft); } }, [draft]);
+  useEffect(() => { const unregister = registerPendingEdit(flush); return () => { unregister(); flush(); }; }, [flush]);
+  return { text, change, flush };
+}
 
 const attachmentSize = (a: Attachment) => a.pages ? `${a.pages}쪽` : `${Math.max(1, Math.round(a.chars / 1000))}k자`;
 
@@ -20,6 +35,8 @@ export function Composer(p: Props) {
   const [resetting, setResetting] = useState(false), [resetError, setResetError] = useState(''), [dropping, setDropping] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const usage = p.usage, empty = !p.contexts.length && !p.attachments.length;
+  const draft = useLocalDraft(p.draft, p.onDraft);
+  const send = () => { draft.flush(); p.onSend(draft.text); };
   const attach = (files: FileList | null) => { if (files?.length) p.onAttach([...files]); };
   return <div className="composer">
     <div className="composer-top"><div className="composer-mode"><button className="composer-model" onClick={p.onModelSettings} aria-label="응답 모델 설정" title="응답 에이전트와 모델 설정">{p.agent.label} · {p.model || '기본 모델'}<ChevronDown size={11}/></button>
@@ -43,12 +60,12 @@ export function Composer(p: Props) {
       {p.attaching && <span><Loader2 size={11} className="spin"/>파일 읽는 중…</span>}
       {empty && !p.attaching && <span><Search size={11}/>첨부한 코드 없음 · {p.hasWorkspace ? '질문에 따라 소스 탐색' : '일반 질문'}</span>}</div>
     <div className={`input-box${dropping ? ' drop-target' : ''}`} onDragOver={e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropping(true); } }} onDragLeave={() => setDropping(false)} onDrop={e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); setDropping(false); attach(e.dataTransfer.files); }}>
-      <textarea aria-label="코드 질문" placeholder={!empty ? '첨부한 코드와 파일을 참고해 질문합니다. 필요한 관련 구현도 탐색합니다.' : '엔진에 대해 자유롭게 질문하세요. 화면 코드는 자동 첨부하지 않습니다.'} value={p.draft} onChange={e => p.onDraft(e.target.value)} onKeyDown={e => { if (e.ctrlKey && e.key === 'Enter' && !e.nativeEvent.isComposing && p.draft.trim() && !p.running && !p.attaching) { e.preventDefault(); p.onSend(); } }}/>
+      <textarea aria-label="코드 질문" placeholder={!empty ? '첨부한 코드와 파일을 참고해 질문합니다. 필요한 관련 구현도 탐색합니다.' : '엔진에 대해 자유롭게 질문하세요. 화면 코드는 자동 첨부하지 않습니다.'} value={draft.text} onChange={e => draft.change(e.target.value)} onBlur={draft.flush} onKeyDown={e => { if (e.ctrlKey && e.key === 'Enter' && !e.nativeEvent.isComposing && draft.text.trim() && !p.running && !p.attaching) { e.preventDefault(); send(); } }}/>
       <div><span>{p.settings.retainSession ? '세션 유지 ON' : '세션 유지 OFF'} · Ctrl Enter</span>
         <div className="composer-actions">
           <input ref={fileRef} type="file" multiple hidden aria-hidden="true" tabIndex={-1} onChange={e => { attach(e.target.files); e.target.value = ''; }}/>
           <button className="attach-button" aria-label="파일 첨부" title="PDF·텍스트 파일을 질문에 첨부합니다. 작업공간 밖의 파일도 됩니다. (끌어다 놓기 가능)" disabled={p.attaching} onClick={() => fileRef.current?.click()}><Paperclip size={14}/></button>
-          {p.running ? <button className="cancel-request" onClick={p.onCancel}>중지</button> : <button className="send-button" aria-label="질문 보내기" title="질문 보내기 (Ctrl Enter)" disabled={!p.draft.trim() || p.attaching} onClick={p.onSend}><Send size={15}/></button>}
+          {p.running ? <button className="cancel-request" onClick={p.onCancel}>중지</button> : <button className="send-button" aria-label="질문 보내기" title="질문 보내기 (Ctrl Enter)" disabled={!draft.text.trim() || p.attaching} onClick={send}><Send size={15}/></button>}
         </div></div></div>
   </div>;
 }

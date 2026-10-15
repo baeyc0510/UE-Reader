@@ -1,6 +1,7 @@
 // Screen composition and cross-panel behavior: navigation history, code ↔ explanation scroll link,
 // agent requests and job polling. Panels are presentational; see Docs/CODE_INDEX.md.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { flushSync } from 'react-dom';
 import { Check, ChevronRight, PanelLeftOpen, Plus, Search, ShieldCheck, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { api, json, upload } from './api/client';
 import { IconButton } from './components/common/IconButton';
@@ -30,6 +31,7 @@ import { useUsage } from './hooks/useUsage';
 import { useChats } from './hooks/useChats';
 import { useCodeIndex } from './hooks/useCodeIndex';
 import { useEventCallback } from './hooks/useEventCallback';
+import { flushPendingEdits } from './lib/pending-edits';
 import { applyAppearance, defaultAppearance, fontStack, type Appearance } from './lib/appearance';
 import { basename, errorText, stem } from './lib/format';
 import { findNoteAtLine, isDetached, teachingOrder } from './lib/notes';
@@ -113,6 +115,8 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
     if (id === undefined || (id && id !== job?.chatId && !chats.some(c => c.id === id))) update({ activeChatId: chats[0]?.id ?? '' });
   }, [ready, chats, session.activeChatId]);
 
+  // The composer keeps typing local; commit it (and its session save effect) before saving.
+  const settleEdits = () => { flushSync(flushPendingEdits); return settle(); };
   async function shutdownApp() {
     setShuttingDown(true); setShutdownError('');
     try {
@@ -125,7 +129,7 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-      if (!await settle()) throw new Error('질문과 화면 상태를 저장하지 못했습니다. 다시 시도하세요.');
+      if (!await settleEdits()) throw new Error('질문과 화면 상태를 저장하지 못했습니다. 다시 시도하세요.');
       const control = await api('/lifecycle');
       await api('/shutdown', json('POST', { token: control.token }));
       onStopped();
@@ -218,11 +222,13 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
   // Poll the running request; on completion refresh history and open what it produced.
   useEffect(() => {
     if (!job || job.status !== 'running') return;
-    let cancelled = false;
+    let cancelled = false, last = '';
     const poll = async () => {
       try {
         const next = await api<Job>(`/jobs/${job.id}`); if (cancelled) return;
-        setJob(next); if (next.status === 'running') return;
+        // An unchanged poll must not re-render the reader.
+        const key = JSON.stringify(next); if (key !== last) { last = key; setJob(next); }
+        if (next.status === 'running') return;
         refreshUsage(true); refreshChats().catch(report); refreshConversations().catch(report);
         if (next.workspaceId === workspaceId && (next.path === session.active || next.paths?.includes(session.active))) refreshFile(false);
         if (next.status !== 'complete') return;
@@ -342,11 +348,11 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
 
   async function connect(demo = false) {
     setConnecting(true); setError('');
-    try { await settle(); const w = await api<Workspace>('/workspaces', json('POST', { root: rootInput, demo, relocateId: relocate ? workspaceId : undefined })); await activate(w, false); setModal(null); setRootInput(''); }
+    try { await settleEdits(); const w = await api<Workspace>('/workspaces', json('POST', { root: rootInput, demo, relocateId: relocate ? workspaceId : undefined })); await activate(w, false); setModal(null); setRootInput(''); }
     catch (e) { report(e); } finally { setConnecting(false); }
   }
   async function activate(w: Workspace, post = true) {
-    await settle();
+    await settleEdits();
     if (post) await api(`/workspaces/${w.id}/activate`, json('POST'));
     const data = await api('/bootstrap'); setWorkspaces(data.workspaces); setWorkspaceId(w.id);
     const next = initialSession(data.sessions[w.id], w);
@@ -373,10 +379,11 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
       return next;
     } catch (e) { report(e); return null; }
   }
-  // `question` overrides the draft (retry). A sent draft is cleared; a rejected one stays for editing.
-  async function generate(kind: string, note?: Note, question?: string) {
+  // `question` overrides the draft (retry); `typed` is the composer's current text, which can be ahead
+  // of the session draft. A sent draft is cleared; a rejected one stays for editing.
+  async function generate(kind: string, note?: Note, question?: string, typed?: string) {
     if (!workspaceId || (!source && kind !== 'question') || running) return;
-    const text = kind === 'question' ? question ?? draft : '';
+    const text = kind === 'question' ? question ?? typed ?? draft : '';
     const started = await start({ kind, path: kind === 'question' ? '' : source?.path || '', question: text, contexts: contextsFor(kind, note), noteId: note?.id, chatId: kind === 'question' ? activeChatId || undefined : undefined,
       attachments: kind === 'question' && attachments.length ? attachments.map(a => a.id) : undefined }, kind === 'question' ? 'questions' : 'notes');
     if (started && kind === 'question' && question === undefined) update(s => (s.questionDraft ?? s.drafts[s.active] ?? '') === text ? { ...s, questionDraft: '', drafts: { ...s.drafts, [s.active]: '' } } : s);
@@ -469,7 +476,9 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
 
   // Stable actions let the memoized explanation cards and Markdown skip re-rendering while the reader scrolls.
   const stable = { navigate: useEventCallback(openFile), preview: useEventCallback(previewSentence), save: useEventCallback(saveNoteContent), jump: useEventCallback(jumpNote), ask: useEventCallback(askAboutNote),
-    showQuestion: useEventCallback(showQuestion), regenerate: useEventCallback((note: Note) => generate('explain', note)), change: useEventCallback(changeNote) };
+    showQuestion: useEventCallback(showQuestion), regenerate: useEventCallback((note: Note) => generate('explain', note)), change: useEventCallback(changeNote),
+    tab: useEventCallback((rightTab: Session['rightTab']) => update({ rightTab })), showExplanation: useEventCallback(showExplanation), explainAnswer: useEventCallback(explainAnswer), visualizeAnswer: useEventCallback(visualizeAnswer),
+    retry: useEventCallback(() => { if (!job) return; if (job.kind === 'refine') return refineNotes(lastRefine.current); const origin = conversations.find(c => c.id === job.sourceConversationId); if (origin && job.kind === 'question') visualizeAnswer(origin); else if (origin) explainAnswer(origin, job.requestPath || ''); else void generate(job.kind, undefined, job.kind === 'question' ? job.question : undefined); }) };
   const explanationPanel = <ExplanationPanel file={session.active} notes={selectedNotes} allNotes={notes} activeNote={activeNote} linked={session.linked} outlineOpen={outlineOpen} demo={!!workspace?.demo}
     notesRef={notesRef} onToggleOutline={() => setOutlineOpen(v => !v)} onGenerate={kind => generate(kind)} onRefine={() => openRefine(session.active ? [session.active] : [])} onScroll={onNotesScroll} onUserScroll={() => { autoNotesUntil.current = 0; }}
     workspaceId={workspaceId} running={running} hasSource={!!source} selection={sourceSelection} contexts={session.contexts} agentLabel={agentLabel}
@@ -479,7 +488,7 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
   const questionPanel = <QuestionPanel workspaceId={workspaceId} agent={agent} agentLabel={agentLabel} model={model} onModelSettings={() => setModal('settings')}
     settings={conversationSettings} usage={usage} usageLoading={usageLoading} onRefreshUsage={() => refreshUsage(true)}
     onResetSession={async () => { if (activeChatId) await api(`/chats/${activeChatId}/agent-session/reset`, json('POST')); setJob(null); notify(`다음 질문부터 새 ${agent.label} 세션을 시작합니다. 저장된 답변은 유지됩니다.`); }}
-    tab={session.active ? session.rightTab : 'questions'} onTab={rightTab => update({ rightTab })} explanation={explanationPanel}
+    tab={session.active ? session.rightTab : 'questions'} onTab={stable.tab} explanation={explanationPanel}
     height={session.composerHeight} onHeight={composerHeight => update({ composerHeight })}
     hasFile={!!session.active} hasWorkspace={!!workspace} draft={draft} contexts={session.contexts} selected={session.contexts}
     extended={extendedThinking} onExtended={toggleExtended} searchScope={workspace ? session.searchScope || [] : []} onSearchScope={searchScope => update({ searchScope })}
@@ -487,11 +496,11 @@ export function Reader({ onStopped }: { onStopped: () => void }) {
     chats={chats || []} activeChatId={activeChatId} onSelectChat={id => update({ activeChatId: id })} onNewChat={() => update({ activeChatId: '', rightTab: 'questions' })}
     onRenameChat={renameChat} onDeleteChat={deleteChat}
     conversations={conversations} job={job?.workspaceId === workspaceId ? job : null}
-    focusConversation={focusConversation} onShowQuestion={showQuestion} onShowExplanation={showExplanation} onExplainAnswer={explainAnswer} onVisualizeAnswer={visualizeAnswer}
-    onDraft={text => update(s => ({ ...s, questionDraft: text, drafts: { ...s.drafts, [s.active]: text } }))} onSend={() => generate('question')}
+    focusConversation={focusConversation} onShowQuestion={showQuestion} onShowExplanation={stable.showExplanation} onExplainAnswer={stable.explainAnswer} onVisualizeAnswer={stable.visualizeAnswer}
+    onDraft={text => update(s => ({ ...s, questionDraft: text, drafts: { ...s.drafts, [s.active]: text } }))} onSend={text => generate('question', undefined, undefined, text)}
     onRemove={path => { update({ contexts: session.contexts.filter(c => c.path !== path) }); if (sourceSelection?.path === path) setSourceSelection(null); }} onNavigate={stable.navigate}
     onCancel={() => job && api(`/jobs/${job.id}/cancel`, json('POST')).catch(report)} onDismiss={() => setJob(null)} onRestoreNotes={restoreNotes}
-    onRetry={() => { if (!job) return; if (job.kind === 'refine') return refineNotes(lastRefine.current); const origin = conversations.find(c => c.id === job.sourceConversationId); if (origin && job.kind === 'question') visualizeAnswer(origin); else if (origin) explainAnswer(origin, job.requestPath || ''); else void generate(job.kind, undefined, job.kind === 'question' ? job.question : undefined); }}
+    onRetry={stable.retry}
     onRetrySave={() => job && api<Job>(`/jobs/${job.id}/retry-save`, json('POST')).then(next => { setJob(next); refreshFile(false); refreshChats(); refreshConversations(); }).catch(report)}/>;
 
   const openWorkspaceModal = () => { setRelocate(false); setModal('workspace'); };

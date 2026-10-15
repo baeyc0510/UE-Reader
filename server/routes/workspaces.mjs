@@ -60,7 +60,8 @@ export function workspaceRoutes(app, { store, indexes, codeIndexes, dataDir, pro
   app.post('/api/workspaces/:id/activate', asyncRoute(async (req, res) => { workspace(req.params.id); await store.update(d => { d.activeWorkspace = req.params.id; }); res.json({ ok: true }); }));
   app.put('/api/workspaces/:id/session', asyncRoute(async (req, res) => {
     workspace(req.params.id);
-    await store.update(d => { d.sessions[req.params.id] = req.body; }); res.json({ ok: true });
+    // Screen state changes constantly; it is written after a quiet period and always before shutdown.
+    await store.defer(d => { d.sessions[req.params.id] = req.body; }); res.json({ ok: true });
   }));
 
   app.get('/api/workspaces/:id/files', asyncRoute(async (req, res) => {
