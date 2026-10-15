@@ -117,18 +117,24 @@ test('saved explanations open a file list first, then the explanations of the ch
   await expect(page.locator('.saved-files')).toBeVisible();
 });
 
+// The code menu closes on any scroll, and a jump to a definition scrolls once the file has loaded,
+// so right-click again until the menu stays open.
+async function openMenuAt(page, line, item) {
+  await expect(async () => {
+    await page.locator('.code-viewport').evaluate(el => { el.scrollTop = 0; });
+    const box = await page.locator(`[data-line="${line}"] code`).boundingBox();
+    await page.mouse.click(box.x + 4, box.y + box.height / 2, { button: 'right' });
+    await expect(page.getByRole('menuitem', { name: item })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10000 });
+}
 test('right-click on code goes to a definition through the code index and searches references', async ({ page }) => {
   await openDemo(page);
   await page.getByRole('tab', { name: 'ReadingActor.cpp', exact: true }).click();
   await expect(page.locator('.code-index-status')).toContainText('심볼', { timeout: 15000 });
-  await page.locator('.code-viewport').evaluate(el => { el.scrollTop = 0; });
-  const target = await page.locator('[data-line="8"] code').boundingBox();
-  await page.mouse.click(target.x + 4, target.y + target.height / 2, { button: 'right' });
+  await openMenuAt(page, 8, /정의로 이동 · AReadingActor/);
   await page.getByRole('menuitem', { name: /정의로 이동 · AReadingActor/ }).click();
   await expect(page.getByRole('tab', { name: 'ReadingActor.h', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await page.locator('.code-viewport').evaluate(el => { el.scrollTop = 0; });
-  const header = await page.locator('[data-line="10"] code').boundingBox();
-  await page.mouse.click(header.x + 4, header.y + header.height / 2, { button: 'right' });
+  await openMenuAt(page, 10, /모든 참조 검색/);
   await page.getByRole('menuitem', { name: /모든 참조 검색/ }).click();
   await expect(page.locator('.search-meta')).toContainText('코드 인덱스로');
   await page.keyboard.press('Escape');
